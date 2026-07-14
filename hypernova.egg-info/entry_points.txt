@@ -1,0 +1,2 @@
+[console_scripts]
+hypernova = hypernova.main:main

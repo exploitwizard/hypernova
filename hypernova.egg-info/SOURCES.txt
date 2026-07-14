@@ -1,0 +1,17 @@
+README.md
+pyproject.toml
+hypernova/__init__.py
+hypernova/capture.py
+hypernova/db.py
+hypernova/engine.py
+hypernova/main.py
+hypernova/repl.py
+hypernova/report.py
+hypernova/scope.py
+hypernova/selector.py
+hypernova.egg-info/PKG-INFO
+hypernova.egg-info/SOURCES.txt
+hypernova.egg-info/dependency_links.txt
+hypernova.egg-info/entry_points.txt
+hypernova.egg-info/requires.txt
+hypernova.egg-info/top_level.txt
