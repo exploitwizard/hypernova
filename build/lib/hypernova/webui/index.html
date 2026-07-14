@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hypernova — web</title>
+<style>
+  :root {
+    --bg:#0d1117; --panel:#161b22; --panel2:#0f141b; --border:#30363d;
+    --fg:#c9d1d9; --muted:#8b949e; --blue:#58a6ff; --green:#3fb950;
+    --yellow:#d29922; --red:#f85149; --purple:#d2a8ff; --cyan:#39c5cf;
+    --mark:#bb8009;
+  }
+  * { box-sizing:border-box; }
+  body {
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Menlo,monospace;
+    background:var(--bg); color:var(--fg); margin:0; font-size:14px;
+  }
+  code, pre, textarea, .mono { font-family:"SF Mono",Menlo,Consolas,monospace; }
+  header {
+    display:flex; align-items:center; gap:16px; padding:10px 18px;
+    background:linear-gradient(90deg,#161b22,#0d1117);
+    border-bottom:1px solid var(--border); position:sticky; top:0; z-index:10;
+  }
+  header h1 {
+    font-size:18px; letter-spacing:3px; margin:0;
+    background:linear-gradient(90deg,var(--cyan),var(--blue),var(--purple));
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+  }
+  .star { font-size:22px; filter:drop-shadow(0 0 6px var(--yellow)); }
+  .badges { margin-left:auto; display:flex; gap:8px; align-items:center; }
+  .badge {
+    padding:3px 9px; border-radius:20px; font-size:12px; border:1px solid var(--border);
+    background:var(--panel); color:var(--muted); white-space:nowrap;
+  }
+  .badge.on { color:var(--green); border-color:#1f6f36; }
+  .badge.mk { color:var(--yellow); border-color:#5a4708; }
+  main { display:grid; grid-template-columns:340px 1fr; gap:14px; padding:14px; align-items:start; }
+  @media (max-width:960px){ main{ grid-template-columns:1fr; } }
+  .col { display:flex; flex-direction:column; gap:14px; }
+  .card {
+    background:var(--panel); border:1px solid var(--border); border-radius:10px;
+    padding:14px; overflow:hidden;
+  }
+  .card h2 {
+    font-size:12px; text-transform:uppercase; letter-spacing:1.5px; color:var(--muted);
+    margin:0 0 10px; display:flex; align-items:center; gap:8px;
+  }
+  .card h2 .n { color:var(--blue); }
+  button {
+    background:#21262d; color:var(--fg); border:1px solid var(--border);
+    border-radius:7px; padding:6px 12px; cursor:pointer; font-size:13px; font-family:inherit;
+  }
+  button:hover { border-color:var(--blue); color:#fff; }
+  button.primary { background:linear-gradient(90deg,#1f6feb,#388bfd); border:none; color:#fff; font-weight:600; }
+  button.primary:hover { filter:brightness(1.1); }
+  button.mark { background:var(--mark); border:none; color:#fff; font-weight:600; }
+  button.danger { border-color:#5a1512; color:var(--red); }
+  button:disabled { opacity:.45; cursor:not-allowed; }
+  input, select, textarea {
+    background:var(--panel2); color:var(--fg); border:1px solid var(--border);
+    border-radius:7px; padding:7px 9px; font-size:13px; width:100%; font-family:inherit;
+  }
+  textarea { resize:vertical; line-height:1.5; }
+  input:focus, textarea:focus, select:focus { outline:none; border-color:var(--blue); }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .muted { color:var(--muted); }
+  .hint { color:var(--muted); font-size:12px; margin:6px 0; }
+  .sep { height:1px; background:var(--border); margin:12px 0; }
+  /* history list */
+  .hitem {
+    display:flex; gap:8px; align-items:center; padding:6px 8px; border-radius:6px;
+    cursor:pointer; border:1px solid transparent; font-size:12.5px;
+  }
+  .hitem:hover { background:var(--panel2); border-color:var(--border); }
+  .hitem .m { color:var(--purple); min-width:44px; font-weight:600; }
+  .hitem .u { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; }
+  .hitem .s { min-width:34px; text-align:right; }
+  .list { max-height:260px; overflow:auto; display:flex; flex-direction:column; gap:2px; }
+  /* status colors */
+  .s2 { color:var(--green);} .s3 { color:var(--cyan);} .s4 { color:var(--yellow);}
+  .s5 { color:var(--red);} .s0 { color:var(--muted);} .stimeout{color:var(--purple);}
+  /* results table */
+  table { border-collapse:collapse; width:100%; font-size:12.5px; }
+  th, td { border-bottom:1px solid var(--border); padding:5px 8px; text-align:left; }
+  th { color:var(--muted); font-weight:600; text-transform:uppercase; font-size:11px; letter-spacing:.5px; cursor:pointer; }
+  tbody tr:hover { background:var(--panel2); }
+  tbody tr { cursor:pointer; }
+  .tblwrap { max-height:340px; overflow:auto; }
+  .pill { font-size:11px; padding:1px 7px; border-radius:20px; background:var(--panel2); border:1px solid var(--border); }
+  .progress { height:6px; background:var(--panel2); border-radius:6px; overflow:hidden; margin-top:8px; }
+  .progress > div { height:100%; background:linear-gradient(90deg,var(--blue),var(--green)); width:0; transition:width .2s; }
+  /* modal */
+  .overlay { position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:center; justify-content:center; z-index:50; padding:24px; }
+  .overlay.show { display:flex; }
+  .modal { background:var(--panel); border:1px solid var(--border); border-radius:12px; max-width:900px; width:100%; max-height:85vh; overflow:auto; padding:18px; }
+  .modal h3 { margin-top:0; color:var(--blue); }
+  pre.dump { white-space:pre-wrap; word-break:break-all; background:var(--panel2); padding:12px; border-radius:8px; border:1px solid var(--border); max-height:32vh; overflow:auto; }
+  .toast { position:fixed; bottom:18px; left:50%; transform:translateX(-50%); background:#21262d; border:1px solid var(--border); border-radius:8px; padding:10px 16px; z-index:100; display:none; }
+  .toast.err { border-color:var(--red); color:var(--red); }
+  .toast.show { display:block; }
+  .pl { margin-bottom:8px; }
+  .pl label { font-size:12px; color:var(--muted); display:block; margin-bottom:3px; }
+  .marker { color:var(--yellow); }
+  .tabs { display:flex; gap:6px; margin-bottom:10px; }
+  .tab { padding:5px 12px; border-radius:7px 7px 0 0; cursor:pointer; color:var(--muted); border:1px solid transparent; }
+  .tab.active { color:#fff; background:var(--panel2); border-color:var(--border); border-bottom-color:var(--panel2); }
+</style>
+</head>
+<body>
+<header>
+  <span class="star">✦</span>
+  <h1>HYPERNOVA</h1>
+  <span class="muted" style="font-size:12px">web intruder</span>
+  <div class="badges">
+    <span id="b-proxy" class="badge">○ proxy off</span>
+    <span id="b-scope" class="badge">scope: all</span>
+    <span id="b-marks" class="badge mk">§ × 0</span>
+  </div>
+</header>
+
+<main>
+  <!-- ================= LEFT: sources ================= -->
+  <div class="col">
+    <div class="card">
+      <h2>Capture proxy</h2>
+      <div class="row">
+        <input id="cap-port" type="number" value="8090" style="width:90px">
+        <button id="cap-start">Start</button>
+        <button id="cap-stop" class="danger">Stop</button>
+      </div>
+      <div class="hint" id="cap-status">Point your browser proxy at 127.0.0.1:port, then browse the target.</div>
+    </div>
+
+    <div class="card">
+      <h2>Paste a request</h2>
+      <textarea id="paste-box" rows="7" placeholder="GET https://example.com/api?id=1 HTTP/1.1&#10;Host: example.com&#10;User-Agent: ...&#10;&#10;(body)"></textarea>
+      <div class="row" style="margin-top:8px">
+        <button id="paste-btn" class="primary">Load into editor →</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Scope</h2>
+      <div class="row">
+        <input id="scope-pat" placeholder="example.com or *.x.com/api">
+        <button id="scope-add">Add</button>
+      </div>
+      <div id="scope-list" class="hint"></div>
+      <div class="row">
+        <label class="muted"><input type="checkbox" id="scope-on" style="width:auto"> filter history by scope</label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Proxy history <span class="n" id="hist-count"></span></h2>
+      <div class="row" style="margin-bottom:8px">
+        <input id="hist-q" placeholder="filter by keyword…">
+        <button id="hist-refresh">↻</button>
+      </div>
+      <div id="hist-list" class="list"></div>
+    </div>
+  </div>
+
+  <!-- ================= RIGHT: mark / attack / results ================= -->
+  <div class="col">
+    <div class="card">
+      <h2>Mark &amp; attack &nbsp;<span class="badge mk" id="mk2">§ × 0</span></h2>
+      <div class="hint">
+        Select the value you want to fuzz in the request below, then click
+        <b class="marker">Add marker §</b> — it wraps your selection just like
+        Burp's <span class="marker">§…§</span>. No copy/paste needed.
+      </div>
+      <textarea id="req-box" rows="12" spellcheck="false"
+        placeholder="Load a request from history or paste one on the left…"></textarea>
+      <div class="row" style="margin-top:8px">
+        <button id="mark-add" class="mark">Add marker §</button>
+        <button id="mark-clear">Clear markers</button>
+        <span class="muted" id="mark-info" style="font-size:12px"></span>
+      </div>
+
+      <div class="sep"></div>
+
+      <div class="row">
+        <div style="flex:1">
+          <label class="muted" style="font-size:12px">Attack type</label>
+          <select id="attack-type">
+            <option value="sniper">sniper — one position at a time</option>
+            <option value="battering_ram">battering_ram — same payload, all positions</option>
+            <option value="pitchfork">pitchfork — lists in lockstep</option>
+            <option value="clusterbomb">clusterbomb — cartesian product</option>
+          </select>
+        </div>
+      </div>
+      <div id="payload-lists" style="margin-top:10px"></div>
+      <div class="row" style="margin-top:10px">
+        <button id="run-btn" class="primary">▶ Run attack</button>
+        <span class="muted" id="run-info" style="font-size:12px"></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>
+        Results
+        <span class="n" id="res-title"></span>
+        <span style="margin-left:auto"></span>
+      </h2>
+      <div class="row" style="margin-bottom:8px">
+        <button id="btn-pause" disabled>❚❚ Pause</button>
+        <button id="btn-resume" disabled>▶ Resume</button>
+        <button id="btn-stop" class="danger" disabled>■ Stop</button>
+        <span style="flex:1"></span>
+        <input id="res-kw" placeholder="filter results…" style="width:150px">
+        <label class="muted" style="font-size:12px"><input type="checkbox" id="res-rev" style="width:auto"> invert</label>
+        <button id="exp-html">⭳ HTML</button>
+        <button id="exp-txt">⭳ TXT</button>
+      </div>
+      <div class="progress"><div id="prog-bar"></div></div>
+      <div class="hint" id="live-status"></div>
+      <div class="tblwrap">
+        <table>
+          <thead><tr>
+            <th data-sort="request_no">#</th>
+            <th>Payloads</th>
+            <th data-sort="status_code">Status</th>
+            <th data-sort="length">Length</th>
+            <th data-sort="elapsed_ms">ms</th>
+            <th>Notes</th>
+          </tr></thead>
+          <tbody id="res-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Sessions <button id="sess-refresh" style="margin-left:auto;padding:2px 8px">↻</button></h2>
+      <div id="sess-list" class="list"></div>
+    </div>
+  </div>
+</main>
+
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <div class="row"><h3 id="m-title" style="flex:1">Request</h3><button onclick="closeModal()">✕</button></div>
+    <h4 class="muted">Request</h4>
+    <pre class="dump" id="m-req"></pre>
+    <h4 class="muted">Response</h4>
+    <pre class="dump" id="m-resp"></pre>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const api = async (url, opts) => {
+  const r = await fetch(url, opts);
+  let data = null;
+  try { data = await r.json(); } catch(e){}
+  if (!r.ok) throw new Error((data && data.error) || r.statusText);
+  return data;
+};
+const jpost = (url, body) => api(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body||{})});
+function toast(msg, err){
+  const t = $('#toast'); t.textContent = msg; t.className = 'toast show' + (err?' err':'');
+  setTimeout(()=>{ t.className = 'toast'; }, 3200);
+}
+const statusClass = c => c==null ? 's0' : ('s'+Math.floor(c/100));
+
+// ---------------- state ----------------
+let state = { sessionId:null, total:0, es:null, sort:'request_no', desc:false, running:false };
+
+// ---------------- markers ----------------
+function countMarkers(){
+  const txt = $('#req-box').value;
+  const n = Math.floor((txt.match(/§/g)||[]).length / 2);
+  $('#b-marks').textContent = '§ × ' + n;
+  $('#mk2').textContent = '§ × ' + n;
+  return n;
+}
+$('#mark-add').onclick = () => {
+  const ta = $('#req-box');
+  const s = ta.selectionStart, e = ta.selectionEnd;
+  if (s === e){ toast('Select the value to mark first.', true); return; }
+  const v = ta.value;
+  ta.value = v.slice(0,s) + '§' + v.slice(s,e) + '§' + v.slice(e);
+  ta.focus();
+  ta.selectionStart = ta.selectionEnd = e + 2;
+  onReqChange();
+};
+$('#mark-clear').onclick = () => {
+  $('#req-box').value = $('#req-box').value.replace(/§/g,'');
+  onReqChange();
+};
+function onReqChange(){
+  const n = countMarkers();
+  renderPayloadInputs(n);
+}
+$('#req-box').addEventListener('input', onReqChange);
+$('#attack-type').addEventListener('change', ()=>renderPayloadInputs(countMarkers()));
+
+function renderPayloadInputs(n){
+  const type = $('#attack-type').value;
+  const need = (type==='sniper' || type==='battering_ram') ? Math.min(1, n||1) : n;
+  const wrap = $('#payload-lists');
+  const existing = {};
+  wrap.querySelectorAll('textarea').forEach((t,i)=> existing[i]=t.value);
+  wrap.innerHTML = '';
+  if (n === 0){ wrap.innerHTML = '<div class="hint">Add at least one § marker to configure payloads.</div>'; return; }
+  const count = Math.max(1, need);
+  for (let i=0;i<count;i++){
+    const div = document.createElement('div');
+    div.className = 'pl';
+    const label = count>1 ? `Payload list ${i+1} / ${count} (position ${i+1})` : 'Payload list (one payload per line)';
+    div.innerHTML = `<label>${label}</label><textarea rows="4" data-idx="${i}" placeholder="admin&#10;root&#10;test"></textarea>`;
+    wrap.appendChild(div);
+    if (existing[i]) div.querySelector('textarea').value = existing[i];
+  }
+}
+
+// ---------------- paste / history ----------------
+$('#paste-btn').onclick = async () => {
+  const raw = $('#paste-box').value.trim();
+  if (!raw){ toast('Nothing to paste.', true); return; }
+  try {
+    const d = await jpost('/api/paste', {raw});
+    loadRawIntoEditor(rawFromParsed(d));
+    $('#paste-box').value = '';
+    toast('Loaded request #' + d.capture_id);
+    refreshHistory();
+  } catch(e){ toast(e.message, true); }
+};
+function rawFromParsed(d){
+  let s = `${d.method} ${d.url}\n`;
+  for (const [k,v] of Object.entries(d.headers||{})) s += `${k}: ${v}\n`;
+  s += `\n${d.body||''}`;
+  return s;
+}
+function loadRawIntoEditor(raw){
+  $('#req-box').value = raw;
+  onReqChange();
+  $('#req-box').scrollIntoView({behavior:'smooth', block:'center'});
+}
+async function refreshHistory(){
+  const q = $('#hist-q').value.trim();
+  const rows = await api('/api/captures' + (q?('?q='+encodeURIComponent(q)):''));
+  $('#hist-count').textContent = rows.length;
+  const list = $('#hist-list'); list.innerHTML = '';
+  if (!rows.length){ list.innerHTML = '<div class="hint">No captured traffic yet. Start the proxy or paste a request.</div>'; return; }
+  for (const r of rows){
+    const div = document.createElement('div');
+    div.className = 'hitem';
+    const st = r.response_status;
+    div.innerHTML = `<span class="m">${r.method}</span>
+      <span class="u" title="${r.url}">${r.url}</span>
+      <span class="s ${statusClass(st)}">${st!=null?st:'-'}</span>`;
+    div.onclick = () => loadCapture(r.id);
+    list.appendChild(div);
+  }
+}
+async function loadCapture(id){
+  try {
+    const d = await api('/api/captures/' + id);
+    loadRawIntoEditor(d.raw);
+    toast('Loaded capture #' + id + ' — select values and mark them.');
+  } catch(e){ toast(e.message, true); }
+}
+$('#hist-refresh').onclick = refreshHistory;
+$('#hist-q').addEventListener('input', ()=>{ clearTimeout(window._ht); window._ht=setTimeout(refreshHistory,250); });
+
+// ---------------- scope ----------------
+async function refreshScope(){
+  const d = await api('/api/scope');
+  $('#scope-on').checked = d.enabled;
+  const b = $('#b-scope');
+  b.textContent = d.patterns.length ? ('scope: ' + d.patterns.length) : 'scope: all';
+  b.className = 'badge' + (d.patterns.length && d.enabled ? ' on' : '');
+  const el = $('#scope-list');
+  el.innerHTML = d.patterns.length ? d.patterns.map(p =>
+    `<span class="pill" style="margin:2px;display:inline-block">${p} <a href="#" data-p="${p}" class="rmscope" style="color:var(--red)">✕</a></span>`
+  ).join('') : 'No patterns — all traffic shown.';
+  el.querySelectorAll('.rmscope').forEach(a => a.onclick = async ev => {
+    ev.preventDefault();
+    await jpost('/api/scope', {action:'rm', pattern:a.dataset.p});
+    refreshScope(); refreshHistory();
+  });
+}
+$('#scope-add').onclick = async () => {
+  const pattern = $('#scope-pat').value.trim();
+  if (!pattern) return;
+  await jpost('/api/scope', {action:'add', pattern});
+  $('#scope-pat').value = '';
+  refreshScope(); refreshHistory();
+};
+$('#scope-on').onchange = async () => {
+  await jpost('/api/scope', {action: $('#scope-on').checked ? 'on':'off'});
+  refreshScope(); refreshHistory();
+};
+
+// ---------------- capture proxy ----------------
+async function refreshCapture(){
+  const d = await api('/api/capture/status');
+  const b = $('#b-proxy');
+  if (d.running){
+    b.textContent = `● proxy:${d.port} · ${d.count}`; b.className = 'badge on';
+    $('#cap-status').innerHTML = `Live on 127.0.0.1:${d.port} — captured <b>${d.count}</b>. ` +
+      (d.last_url ? `<span class="muted">last: ${d.last_url}</span>`:'');
+  } else {
+    b.textContent = '○ proxy off'; b.className = 'badge';
+    if (!d.available) $('#cap-status').innerHTML = '<span class="muted">mitmproxy not installed — use Paste, or <code>pipx inject hypernova mitmproxy</code>.</span>';
+  }
+}
+$('#cap-start').onclick = async () => {
+  try { await jpost('/api/capture/start', {port: parseInt($('#cap-port').value)||8090}); toast('Capture started.'); refreshCapture(); }
+  catch(e){ toast(e.message, true); }
+};
+$('#cap-stop').onclick = async () => {
+  try { const d = await jpost('/api/capture/stop', {}); toast('Stopped ('+d.count+' captured).'); refreshCapture(); }
+  catch(e){ toast(e.message, true); }
+};
+
+// ---------------- attack ----------------
+$('#run-btn').onclick = async () => {
+  const raw = $('#req-box').value;
+  if (countMarkers() === 0){ toast('Add at least one § marker.', true); return; }
+  const type = $('#attack-type').value;
+  const payload_lists = [...$('#payload-lists').querySelectorAll('textarea')].map(t => t.value);
+  try {
+    const d = await jpost('/api/attack', {raw, attack_type:type, payload_lists});
+    toast(`${d.total} requests queued (${d.attack_type}).`);
+    openSession(d.session_id, d.total, true);
+    refreshSessions();
+  } catch(e){ toast(e.message, true); }
+};
+
+function setControls(running){
+  state.running = running;
+  $('#btn-pause').disabled = !running;
+  $('#btn-stop').disabled = !state.sessionId;
+  $('#btn-resume').disabled = running || !state.sessionId;
+}
+
+// live stream via SSE
+function openSession(sid, total, live){
+  if (state.es){ state.es.close(); state.es = null; }
+  state.sessionId = sid; state.total = total || 0;
+  $('#res-title').textContent = sid;
+  $('#res-body').innerHTML = '';
+  $('#prog-bar').style.width = '0';
+  setControls(!!live);
+  if (live){
+    $('#live-status').textContent = 'running…';
+    const es = new EventSource(`/api/sessions/${sid}/stream`);
+    state.es = es;
+    let count = 0;
+    es.addEventListener('meta', e => { const m = JSON.parse(e.data); if (m.total) { state.total = m.total; } });
+    es.addEventListener('result', e => {
+      const r = JSON.parse(e.data); count++;
+      appendRow(r);
+      if (state.total){ $('#prog-bar').style.width = Math.min(100, 100*count/state.total)+'%'; }
+      $('#live-status').textContent = `${count}${state.total?'/'+state.total:''} completed`;
+    });
+    es.addEventListener('done', e => {
+      const d = JSON.parse(e.data);
+      es.close(); state.es = null;
+      $('#live-status').textContent = `${d.status} — ${d.count} request(s).`;
+      setControls(false);
+      loadResults();
+      refreshSessions();
+    });
+    es.onerror = () => { es.close(); state.es=null; setControls(false); loadResults(); };
+  } else {
+    loadResults();
+  }
+}
+
+function rowHtml(r){
+  let cls = statusClass(r.status_code), note = r.error || '';
+  let label = r.status_code!=null ? r.status_code : '-';
+  if (r.timeout){ cls='stimeout'; note='TIMEOUT'; label='-'; }
+  else if (r.response_gone){ cls='s5'; note='GONE'; }
+  const pl = Array.isArray(r.payloads) ? r.payloads.join(', ') : r.payloads;
+  return `<td>${r.request_no}</td>
+    <td class="mono" title="${escapeHtml(String(pl))}">${escapeHtml(truncate(String(pl),40))}</td>
+    <td class="${cls}">${label}</td>
+    <td>${r.length!=null?r.length:'-'}</td>
+    <td>${r.elapsed_ms!=null?Math.round(r.elapsed_ms):'-'}</td>
+    <td class="muted">${escapeHtml(note)}</td>`;
+}
+function appendRow(r){
+  const tr = document.createElement('tr');
+  tr.innerHTML = rowHtml(r);
+  tr.onclick = () => expandRow(r.request_no);
+  $('#res-body').appendChild(tr);
+}
+async function loadResults(){
+  if (!state.sessionId) return;
+  const kw = $('#res-kw').value.trim();
+  const params = new URLSearchParams({sort:state.sort, desc:state.desc, keyword:kw, reverse:$('#res-rev').checked});
+  const d = await api(`/api/sessions/${state.sessionId}?`+params);
+  $('#res-title').textContent = `${d.session_id} · ${d.attack_type} · ${d.status}`;
+  const body = $('#res-body'); body.innerHTML = '';
+  for (const r of d.results){
+    const tr = document.createElement('tr');
+    tr.innerHTML = rowHtml(r);
+    tr.onclick = () => expandRow(r.request_no);
+    body.appendChild(tr);
+  }
+  setControls(d.running);
+  $('#btn-resume').disabled = d.running || d.status !== 'paused';
+}
+async function expandRow(no){
+  const d = await api(`/api/sessions/${state.sessionId}/results/${no}`);
+  $('#m-title').textContent = `Request #${no}`;
+  $('#m-req').textContent = d.full_request;
+  $('#m-resp').textContent = d.full_response;
+  $('#overlay').classList.add('show');
+}
+function closeModal(){ $('#overlay').classList.remove('show'); }
+$('#overlay').onclick = e => { if (e.target === $('#overlay')) closeModal(); };
+
+// controls
+$('#btn-pause').onclick = async () => { await jpost(`/api/sessions/${state.sessionId}/pause`); toast('Paused.'); };
+$('#btn-resume').onclick = async () => {
+  await jpost(`/api/sessions/${state.sessionId}/resume`);
+  toast('Resumed.'); openSession(state.sessionId, state.total, true);
+};
+$('#btn-stop').onclick = async () => { await jpost(`/api/sessions/${state.sessionId}/stop`); toast('Stopped.'); if(state.es){state.es.close();state.es=null;} setControls(false); loadResults(); };
+$('#exp-html').onclick = () => { if(state.sessionId) window.open(`/api/sessions/${state.sessionId}/export?fmt=html`); };
+$('#exp-txt').onclick = () => { if(state.sessionId) window.open(`/api/sessions/${state.sessionId}/export?fmt=txt`); };
+$('#res-kw').addEventListener('input', ()=>{ clearTimeout(window._rk); window._rk=setTimeout(loadResults,300); });
+$('#res-rev').onchange = loadResults;
+document.querySelectorAll('th[data-sort]').forEach(th => th.onclick = () => {
+  const c = th.dataset.sort;
+  if (state.sort === c) state.desc = !state.desc; else { state.sort = c; state.desc = false; }
+  loadResults();
+});
+
+// ---------------- sessions ----------------
+async function refreshSessions(){
+  const rows = await api('/api/sessions');
+  const list = $('#sess-list'); list.innerHTML = '';
+  if (!rows.length){ list.innerHTML = '<div class="hint">No attack sessions yet.</div>'; return; }
+  for (const r of rows){
+    const div = document.createElement('div');
+    div.className = 'hitem';
+    div.innerHTML = `<span class="m">${r.attack_type.slice(0,6)}</span>
+      <span class="u">${r.target_summary||r.session_id}</span>
+      <span class="pill">${r.status}</span>
+      <span class="s">${r.count}</span>`;
+    div.onclick = () => openSession(r.session_id, 0, false);
+    list.appendChild(div);
+  }
+}
+$('#sess-refresh').onclick = refreshSessions;
+
+// ---------------- utils ----------------
+function escapeHtml(s){ return s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function truncate(s,n){ return s.length>n ? s.slice(0,n)+'…' : s; }
+
+// ---------------- boot ----------------
+refreshCapture(); refreshScope(); refreshHistory(); refreshSessions();
+renderPayloadInputs(0);
+setInterval(()=>{ refreshCapture(); if (state.running) {} else refreshHistory(); }, 4000);
+</script>
+</body>
+</html>

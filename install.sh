@@ -1,18 +1,26 @@
 #!/usr/bin/env bash
 #
-# Hypernova installer — gives you a global `hypernova` command, with the
-# mitmproxy capture engine bundled, on modern (PEP 668 "externally-managed")
-# Python setups where a bare `pip install` is blocked.
+# Hypernova installer — gives you global `hypernova` (terminal) and
+# `hypernova-web` (browser) commands, with the mitmproxy capture engine
+# bundled, on modern (PEP 668 "externally-managed") Python setups where a bare
+# `pip install` is blocked. Both commands share one SQLite database.
 #
 # Usage:
-#   ./install.sh            # install / upgrade
+#   ./install.sh            # install / upgrade (terminal + web + capture)
 #   ./install.sh --no-capture   # skip mitmproxy (smaller, no live proxy)
+#   ./install.sh --no-web       # skip the browser frontend (no Flask)
 #
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WITH_CAPTURE=1
-[ "${1:-}" = "--no-capture" ] && WITH_CAPTURE=0
+WITH_WEB=1
+for arg in "$@"; do
+    case "$arg" in
+        --no-capture) WITH_CAPTURE=0 ;;
+        --no-web)     WITH_WEB=0 ;;
+    esac
+done
 
 say()  { printf '\033[1;36m▸\033[0m %s\n' "$*"; }
 ok()   { printf '\033[1;32m✓\033[0m %s\n' "$*"; }
@@ -35,8 +43,14 @@ if command -v pipx >/dev/null 2>&1; then
         pipx inject hypernova "mitmproxy>=10.0" || \
             warn "mitmproxy inject failed — /paste still works; retry with: pipx inject hypernova mitmproxy"
     fi
+    if [ "$WITH_WEB" = "1" ]; then
+        say "Adding the Flask web frontend…"
+        pipx inject hypernova "flask>=2.2" || \
+            warn "flask inject failed — retry with: pipx inject hypernova flask"
+    fi
     pipx ensurepath >/dev/null 2>&1 || true
-    ok "Installed. Open a new terminal (or 'source ~/.zshrc') and run:  hypernova"
+    ok "Installed. Open a new terminal (or 'source ~/.zshrc'), then run:"
+    ok "  hypernova       (terminal)   ·   hypernova-web   (browser)"
     exit 0
 fi
 
@@ -51,9 +65,13 @@ VENV="$HOME/.hypernova/venv"
 say "Creating venv at $VENV"
 python3 -m venv "$VENV"
 "$VENV/bin/pip" install --quiet --upgrade pip
-say "Installing Hypernova$([ "$WITH_CAPTURE" = 1 ] && echo ' + mitmproxy')…"
-if [ "$WITH_CAPTURE" = "1" ]; then
-    "$VENV/bin/pip" install --quiet "$HERE"[capture]
+# Assemble the optional-extras string, e.g. [capture,web].
+EXTRAS=""
+[ "$WITH_CAPTURE" = "1" ] && EXTRAS="capture"
+[ "$WITH_WEB" = "1" ] && EXTRAS="${EXTRAS:+$EXTRAS,}web"
+say "Installing Hypernova${EXTRAS:+ [$EXTRAS]}…"
+if [ -n "$EXTRAS" ]; then
+    "$VENV/bin/pip" install --quiet "$HERE""[$EXTRAS]"
 else
     "$VENV/bin/pip" install --quiet "$HERE"
 fi
@@ -66,9 +84,14 @@ BIN="${BIN:-$HOME/.local/bin}"
 mkdir -p "$BIN"
 ln -sf "$VENV/bin/hypernova" "$BIN/hypernova"
 ok "Linked $BIN/hypernova"
+if [ "$WITH_WEB" = "1" ] && [ -x "$VENV/bin/hypernova-web" ]; then
+    ln -sf "$VENV/bin/hypernova-web" "$BIN/hypernova-web"
+    ok "Linked $BIN/hypernova-web"
+fi
+RUNHINT="hypernova$([ "$WITH_WEB" = 1 ] && echo '   ·   hypernova-web')"
 case ":$PATH:" in
-    *":$BIN:"*) ok "Installed. Run:  hypernova" ;;
+    *":$BIN:"*) ok "Installed. Run:  $RUNHINT" ;;
     *) warn "Add this to your shell profile, then reopen the terminal:"
        printf '    export PATH="%s:$PATH"\n' "$BIN"
-       ok "Then run:  hypernova" ;;
+       ok "Then run:  $RUNHINT" ;;
 esac

@@ -1,2 +1,3 @@
 [console_scripts]
 hypernova = hypernova.main:main
+hypernova-web = hypernova.web:main

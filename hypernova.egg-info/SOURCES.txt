@@ -9,9 +9,11 @@ hypernova/repl.py
 hypernova/report.py
 hypernova/scope.py
 hypernova/selector.py
+hypernova/web.py
 hypernova.egg-info/PKG-INFO
 hypernova.egg-info/SOURCES.txt
 hypernova.egg-info/dependency_links.txt
 hypernova.egg-info/entry_points.txt
 hypernova.egg-info/requires.txt
 hypernova.egg-info/top_level.txt
+hypernova/webui/index.html

@@ -1,10 +1,20 @@
 # Hypernova
 
-A CLI-based, fully interactive, fast HTTP brute-forcer — a terminal-native
-replacement for Burp Suite's Proxy + Intruder combo. Capture traffic like
-Burp Proxy, run Intruder-style attacks (sniper / pitchfork / battering-ram /
-clusterbomb), all inside one stateful REPL session that can be paused,
-resumed, filtered, and revisited from the keyboard.
+A fast, fully interactive HTTP brute-forcer — a lightweight replacement for
+Burp Suite's Proxy + Intruder combo. Capture traffic like Burp Proxy, run
+Intruder-style attacks (sniper / pitchfork / battering-ram / clusterbomb), all
+in one stateful session that can be paused, resumed, filtered, and revisited.
+
+**Two frontends, one engine.** The exact same capture / attack / session core
+is driven by either:
+
+| Command         | Frontend                                                       |
+| --------------- | -------------------------------------------------------------- |
+| `hypernova`     | Terminal REPL — everything from the keyboard.                   |
+| `hypernova-web` | Browser UI at `http://127.0.0.1:8099` — same features, plus **select-a-value-and-click to mark** fuzz points (no copy/paste). |
+
+Both share the same SQLite database (`~/.hypernova/hypernova.db`), so a request
+captured or attacked in one shows up in the other.
 
 ## Install
 
@@ -19,8 +29,12 @@ capture engine bundled, and works on modern "externally-managed" Python
 Then, from anywhere:
 
 ```bash
-hypernova
+hypernova         # terminal REPL
+hypernova-web     # browser UI (opens http://127.0.0.1:8099)
 ```
+
+The installer bundles both frontends by default. Skip the browser UI (and its
+Flask dependency) with `./install.sh --no-web`.
 
 The installer prefers [`pipx`](https://pipx.pypa.io) (isolated + global). If
 pipx isn't present it falls back to a private venv under `~/.hypernova/venv`
@@ -70,6 +84,22 @@ py -m pipx inject hypernova mitmproxy
 
 Run `/help` inside the REPL any time for the full command reference.
 
+### Web workflow (`hypernova-web`)
+
+The browser UI mirrors the same steps in a single page:
+
+1. **Start capture** (or **Paste** a raw request) — captured traffic streams
+   into the *Proxy history* list on the left.
+2. Click a history row to load it into the **Mark & attack** editor.
+3. **Select the value** you want to fuzz with the mouse and click
+   **`Add marker §`** — it wraps your selection in `§…§`. Repeat for each
+   position; **Clear markers** resets them.
+4. Pick an attack type, paste payload list(s) (one per line — one box per
+   position for pitchfork/clusterbomb), and hit **Run attack**.
+5. Results stream in live with a progress bar; **Pause/Resume/Stop**, sort by
+   column, keyword-filter (with **invert**), click any row to expand the full
+   request/response, and **⭳ HTML / ⭳ TXT** to export.
+
 ## Architecture
 
 ```
@@ -82,8 +112,14 @@ hypernova/
 │                  live result streaming
 ├── repl.py        The slash-command shell tying everything together
 ├── report.py      .txt / .html (collapsible, expandable) export
-└── main.py        Entry point
+├── main.py        Terminal entry point  (hypernova)
+├── web.py         Flask REST + SSE server reusing the same core (hypernova-web)
+└── webui/         Single-page browser frontend (click-to-mark editor)
 ```
+
+The web frontend is a thin JSON/SSE layer over the identical `db` + `engine` +
+`report` + `scope` + `capture` modules the REPL uses — no attack logic is
+duplicated, so both frontends stay in lockstep.
 
 ### Notes on correctness
 

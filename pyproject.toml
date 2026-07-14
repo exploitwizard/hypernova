@@ -18,9 +18,14 @@ dependencies = [
 
 [project.optional-dependencies]
 capture = ["mitmproxy>=10.0"]
+web = ["flask>=2.2"]
 
 [project.scripts]
 hypernova = "hypernova.main:main"
+hypernova-web = "hypernova.web:main"
 
 [tool.setuptools.packages.find]
 include = ["hypernova*"]
+
+[tool.setuptools.package-data]
+hypernova = ["webui/*.html"]
