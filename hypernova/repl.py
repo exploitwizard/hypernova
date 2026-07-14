@@ -468,29 +468,81 @@ class Shell:
         self._launch_attack(attack_type, payload_lists)
 
     def _prompt_payload_list(self, index, total):
+        import os
+
         label = f"payload list {index + 1}/{total}" if total > 1 else "payload list"
-        source = self.session.prompt(f"{label} — file path or 'paste'> ").strip()
+        source = self.session.prompt(
+            f"{label} — file path, 'paste', or paste the list right here> "
+        ).strip()
+
+        if not source:
+            console.print("[yellow]No payloads given.[/yellow]")
+            return []
+
+        # 1) Explicit paste mode: read lines until a blank submission. A
+        #    multi-line paste can also arrive as a single submission with
+        #    embedded newlines, so split every submission on newlines.
         if source.lower() == "paste":
-            console.print("[dim]Paste payloads, one per line. Blank line to finish.[/dim]")
+            console.print("[dim]Paste payloads (one per line). Submit an empty line to finish.[/dim]")
             items = []
             while True:
                 line = self.session.prompt("")
                 if line == "":
                     break
-                items.append(line)
+                items.extend(p for p in line.splitlines() if p.strip() != "")
+            if not items:
+                console.print("[yellow]That payload list is empty.[/yellow]")
             return items
-        try:
-            with open(source, "r", encoding="utf-8", errors="ignore") as f:
-                return [l.rstrip("\n") for l in f if l.strip() != ""]
-        except OSError as e:
-            console.print(f"[red]Could not read {source}: {e}[/red]")
+
+        # 2) A real file on disk: read one payload per non-blank line.
+        if os.path.isfile(source):
+            try:
+                with open(source, "r", encoding="utf-8", errors="ignore") as f:
+                    items = [l.rstrip("\r\n") for l in f if l.strip() != ""]
+                if not items:
+                    console.print(f"[yellow]{source} contains no payloads.[/yellow]")
+                return items
+            except OSError as e:
+                console.print(f"[red]Could not read {source}: {e}[/red]")
+                return []
+
+        # 3) Not 'paste' and not an existing file. If it contains multiple
+        #    lines, the user pasted the wordlist straight into this prompt —
+        #    treat each line as a payload instead of trying to open it as a
+        #    (non-existent) file, which used to silently yield 0 payloads.
+        lines = [p for p in source.splitlines() if p.strip() != ""]
+        if len(lines) > 1:
+            console.print(f"[dim]Read {len(lines)} inline payload(s) from your paste.[/dim]")
+            return lines
+
+        # 4) A single token that isn't a file. If it looks like a path they
+        #    intended a file that doesn't exist; otherwise treat it as one
+        #    literal payload.
+        if "/" in source or os.sep in source or source.endswith((".txt", ".lst", ".list")):
+            console.print(f"[red]File not found: {source}[/red] "
+                          f"(type [bold]paste[/bold] to enter payloads inline instead).")
             return []
+        console.print(f"[dim]Using a single literal payload: {source}[/dim]")
+        return [source]
 
     def _launch_attack(self, attack_type, payload_lists):
+        # Refuse to "run" an attack that would fire nothing — otherwise the
+        # session is created and instantly marked completed with zero results,
+        # which looks like a silent failure.
+        if not payload_lists or any(len(pl) == 0 for pl in payload_lists):
+            console.print("[red]Cannot start: at least one payload list is empty.[/red] "
+                          "Re-run [bold]/attack[/bold] and provide payloads "
+                          "(a file path, or type [bold]paste[/bold] to enter them inline).")
+            return
         try:
             total = total_request_count(self.current_request, attack_type, payload_lists)
         except MarkerError as e:
             console.print(f"[red]{e}[/red]")
+            return
+        if total == 0:
+            console.print("[red]Nothing to attack (0 requests).[/red] Check that the "
+                          "request has §…§ markers (/mark) and that your payload lists "
+                          "aren't empty.")
             return
         console.print(f"[cyan]{total} request(s) queued for a {attack_type} attack.[/cyan]")
 
